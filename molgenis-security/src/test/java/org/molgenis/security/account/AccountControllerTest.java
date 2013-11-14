@@ -18,6 +18,7 @@ import org.molgenis.framework.db.QueryRule;
 import org.molgenis.framework.db.QueryRule.Operator;
 import org.molgenis.framework.server.MolgenisSettings;
 import org.molgenis.omx.auth.MolgenisUser;
+import org.molgenis.security.MolgenisPasswordEncoder;
 import org.molgenis.security.captcha.CaptchaService;
 import org.molgenis.security.user.MolgenisUserService;
 import org.molgenis.util.HandleRequestDelegationException;
@@ -89,7 +90,7 @@ public class AccountControllerTest extends AbstractTestNGSpringContextTests
 	@Test
 	public void activateUser() throws Exception
 	{
-		this.mockMvc.perform(get("/account/activate/123")).andExpect(view().name("redirect:http://localhost"));
+		this.mockMvc.perform(get("/account/activate/123")).andExpect(view().name("forward:/"));
 		verify(accountService).activateUser("123");
 	}
 
@@ -206,6 +207,12 @@ public class AccountControllerTest extends AbstractTestNGSpringContextTests
 		public MolgenisUserService molgenisUserService()
 		{
 			return mock(MolgenisUserService.class);
+		}
+
+		@Bean
+		public MolgenisPasswordEncoder molgenisPasswordEncoder()
+		{
+			return mock(MolgenisPasswordEncoder.class);
 		}
 	}
 }
