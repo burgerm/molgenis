@@ -102,22 +102,24 @@ public class WorkflowServiceImpl implements WorkflowService
 
 	private Workflow createWorkflow(Protocol protocol)
 	{
-		return new Workflow(protocol, Lists.transform(ProtocolUtils.getProtocolDescendants(protocol, false),
-				new Function<Protocol, WorkflowElement>()
+		return new Workflow(protocol, Lists.transform(ProtocolUtils.getLineairizedWorkflow(protocol),
+			new Function<Protocol, WorkflowElement>()
+		//return new Workflow(protocol, Lists.transform(ProtocolUtils.getProtocolDescendants(protocol, false),
+		//	new Function<Protocol, WorkflowElement>()
+			{
+				@Override
+				public WorkflowElement apply(Protocol protocol)
 				{
-					@Override
-					public WorkflowElement apply(Protocol protocol)
+					try
 					{
-						try
-						{
-							return new WorkflowElement(protocol, database);
-						}
-						catch (WorkflowException e)
-						{
-							throw new RuntimeException(e);
-						}
+						return new WorkflowElement(protocol, database);
 					}
-				}));
+					catch (WorkflowException e)
+					{
+						throw new RuntimeException(e);
+					}
+				}
+			}));
 	}
 
 	// TODO make transactional
@@ -280,11 +282,23 @@ public class WorkflowServiceImpl implements WorkflowService
 
 			if (observedValues == null || observedValues.isEmpty())
 			{
-				if (observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.XREF.toString())
+				if (observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.BOOL.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.STRING.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.XREF.toString())
 						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.MREF.toString())
-						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.INT.toString())
 						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.DATE.toString())
-						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.BOOL.toString()))
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.INT.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.CATEGORICAL.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.DATE_TIME.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.DECIMAL.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.EMAIL.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.ENUM.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.FILE.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.HTML.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.HYPERLINK.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.IMAGE.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.LONG.toString())
+						|| observableFeature.getDataType().equalsIgnoreCase(FieldTypeEnum.TEXT.toString()))
 				{
 					String characteristicIdentifier = UUID.randomUUID().toString();
 

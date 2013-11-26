@@ -54,4 +54,10 @@ public class ProtocolUtilsTest
 		assertTrue(protocolDescendants.contains(subProtocol3));
 		assertTrue(protocolDescendants.contains(subProtocol4));
 	}
+	
+	@Test
+	public void isDirectedAcyclicGraph()
+	{
+		
+	}
 }
