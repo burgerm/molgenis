@@ -5,17 +5,20 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
-import org.molgenis.framework.db.Database;
+import org.molgenis.JDBCMetaDatabase;
+import org.molgenis.data.DataService;
+import org.molgenis.data.support.QueryImpl;
 import org.molgenis.framework.db.DatabaseException;
 import org.molgenis.framework.tupletable.TableException;
 import org.molgenis.omx.dataset.DataSetTable;
 import org.molgenis.omx.observ.DataSet;
+import org.molgenis.omx.observ.Protocol;
 import org.molgenis.omx.protocol.CategoryTable;
 import org.molgenis.omx.protocol.ProtocolTable;
 import org.molgenis.search.SearchService;
+import org.molgenis.security.runas.RunAsSystem;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 
 /**
@@ -29,8 +32,7 @@ public class AsyncDataSetsIndexer implements DataSetsIndexer, InitializingBean
 	private static final Logger LOG = Logger.getLogger(AsyncDataSetsIndexer.class);
 
 	@Autowired
-	@Qualifier("unsecuredDatabase")
-	private Database unsecuredDatabase;
+	private DataService dataService;
 
 	private SearchService searchService;
 	private final AtomicInteger runningIndexProcesses = new AtomicInteger();
@@ -61,18 +63,21 @@ public class AsyncDataSetsIndexer implements DataSetsIndexer, InitializingBean
 	 */
 	@Override
 	@Async
+	@RunAsSystem
 	public void index()
 	{
 		runningIndexProcesses.incrementAndGet();
 		try
 		{
-			for (DataSet dataSet : unsecuredDatabase.find(DataSet.class))
+			Iterable<DataSet> dataSets = dataService.findAll(DataSet.ENTITY_NAME, new QueryImpl());
+			for (DataSet dataSet : dataSets)
 			{
-				searchService.indexTupleTable(dataSet.getIdentifier(), new DataSetTable(dataSet, unsecuredDatabase));
+				searchService.indexTupleTable(dataSet.getIdentifier(), new DataSetTable(dataSet, dataService,
+						new JDBCMetaDatabase()));
 				searchService.indexTupleTable("protocolTree-" + dataSet.getId(),
-						new ProtocolTable(dataSet.getProtocolUsed(), unsecuredDatabase));
+						new ProtocolTable(dataSet.getProtocolUsed(), dataService));
 				searchService.indexTupleTable("featureCategory-" + dataSet.getId(),
-						new CategoryTable(dataSet.getProtocolUsed(), unsecuredDatabase));
+						new CategoryTable(dataSet.getProtocolUsed(), dataService));
 			}
 		}
 		catch (Exception e)
@@ -85,42 +90,10 @@ public class AsyncDataSetsIndexer implements DataSetsIndexer, InitializingBean
 		}
 	}
 
-	/**
-	 * Index all datatsets that are not in the index yet
-	 * 
-	 * @throws DatabaseException
-	 * @throws TableException
-	 */
 	@Override
 	@Async
-	public void indexNew()
-	{
-		List<Integer> dataSetIds = new ArrayList<Integer>();
-
-		try
-		{
-			for (DataSet dataSet : unsecuredDatabase.find(DataSet.class))
-			{
-				if (!searchService.documentTypeExists(dataSet.getIdentifier()))
-				{
-					dataSetIds.add(dataSet.getId());
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			LOG.error("Exception index()", e);
-		}
-
-		if (!dataSetIds.isEmpty())
-		{
-			index(dataSetIds);
-		}
-	}
-
-	@Override
-	@Async
-	public void index(List<Integer> dataSetIds)
+	@RunAsSystem
+	public void indexDataSets(List<Integer> dataSetIds)
 	{
 		while (isIndexingRunning())
 		{
@@ -137,15 +110,16 @@ public class AsyncDataSetsIndexer implements DataSetsIndexer, InitializingBean
 		runningIndexProcesses.incrementAndGet();
 		try
 		{
-			List<DataSet> dataSets = unsecuredDatabase.query(DataSet.class).in(DataSet.ID, dataSetIds).find();
+			Iterable<DataSet> dataSets = dataService.findAll(DataSet.ENTITY_NAME, dataSetIds);
 
 			for (DataSet dataSet : dataSets)
 			{
-				searchService.indexTupleTable(dataSet.getIdentifier(), new DataSetTable(dataSet, unsecuredDatabase));
+				searchService.indexTupleTable(dataSet.getIdentifier(), new DataSetTable(dataSet, dataService,
+						new JDBCMetaDatabase()));
 				searchService.indexTupleTable("protocolTree-" + dataSet.getId(),
-						new ProtocolTable(dataSet.getProtocolUsed(), unsecuredDatabase));
+						new ProtocolTable(dataSet.getProtocolUsed(), dataService));
 				searchService.indexTupleTable("featureCategory-" + dataSet.getId(),
-						new CategoryTable(dataSet.getProtocolUsed(), unsecuredDatabase));
+						new CategoryTable(dataSet.getProtocolUsed(), dataService));
 			}
 		}
 		catch (Exception e)
@@ -157,5 +131,45 @@ public class AsyncDataSetsIndexer implements DataSetsIndexer, InitializingBean
 			runningIndexProcesses.decrementAndGet();
 		}
 	}
+
+    @Override
+    @Async
+    @RunAsSystem
+    public void indexProtocols(List<Integer> protocolIds)
+    {
+        while (isIndexingRunning())
+        {
+            try
+            {
+                Thread.sleep(5000);
+            }
+            catch (InterruptedException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+
+        runningIndexProcesses.incrementAndGet();
+        try
+        {
+            Iterable<Protocol> protocols = dataService.findAll(Protocol.ENTITY_NAME, protocolIds);
+
+            for (Protocol protocol : protocols)
+            {
+                searchService.indexTupleTable("protocolTree-" + protocol.getId(),
+                        new ProtocolTable(protocol, dataService));
+                searchService.indexTupleTable("featureCategory-" + protocol.getId(),
+                        new CategoryTable(protocol, dataService));
+            }
+        }
+        catch (Exception e)
+        {
+            LOG.error("Exception index()", e);
+        }
+        finally
+        {
+            runningIndexProcesses.decrementAndGet();
+        }
+    }
 
 }

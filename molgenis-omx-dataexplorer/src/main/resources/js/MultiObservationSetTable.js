@@ -29,8 +29,8 @@
 		items.push('<thead>');
 		$.each(selectedFeatures, function(i, val) {
 			var feature = restApi.get(this);
-			if (sortRule && sortRule.value == feature.identifier) {
-				if (sortRule.operator == 'SORTASC') {
+			if (sortRule && sortRule.orders[0].property == feature.identifier) {
+				if (sortRule.orders[0].direction == 'ASC') {
 					items.push('<th>' + feature.name + '<span data-value="' + feature.identifier
 							+ '" class="ui-icon ui-icon-triangle-1-s down"></span></th>');
 				} else {
@@ -60,16 +60,18 @@
 				var cellValue = "";
 				if ((value != null) && (value != undefined)) {
 					if (feature.dataType.toLowerCase() == "xref" && (typeof molgenis.entityExplorerUrl !== 'undefined')){
-						entityInfo = restApi.get(feature.href);
-						cellValue = '<a href="'+ molgenis.entityExplorerUrl +'?entity=' + feature.identifier + '&identifier=' + formatTableCellValue(value, feature.dataType) + '">' 
-						+ htmlEscape(value) + '</a>';
+						var valueKey = columnValueMap['key-' + feature.identifier];
+						var valueValue = formatTableCellValue(value, feature.dataType);
+						cellValue = '<a href="'+ molgenis.entityExplorerUrl +'?entity=Characteristic&identifier=' + valueKey + '">' + valueValue + '</a>';
 					}	
 					else if (feature.dataType.toLowerCase() == "mref" && (typeof molgenis.entityExplorerUrl !== 'undefined')){
-						var elements = value.split(',');
-						for (var i = 0; i < elements.length; i++) {
-							var element = elements[i].replace(/\s/g, '');
-						    if(i>0) cellValue += ",";
-						    cellValue += '<a href="'+ molgenis.entityExplorerUrl +'?entity=' + feature.identifier + '&identifier=' + element + '">' + htmlEscape(element) + '</a>';
+						var valueKeys = columnValueMap['key-' + feature.identifier];
+						var valueValues = value.split(',');
+						for (var i = 0; i < valueValues.length; i++) {
+							var valueKey = valueKeys[i];
+							var valueValue = formatTableCellValue(valueValues[i], feature.dataType);
+						    if(i > 0) cellValue +=  ',';
+						    cellValue += '<a href="'+ molgenis.entityExplorerUrl +'?entity=Characteristic&identifier=' + valueKey + '">' + valueValue + '</a>';
 						}
 					}
 					else{
@@ -95,15 +97,19 @@
 
 			var featureIdentifier = $(this).data('value');
 			console.log("select sort column: " + featureIdentifier);
-			if (sortRule && sortRule.operator == 'SORTASC') {
+			if (sortRule && sortRule.orders[0].direction == 'ASC') {
 				sortRule = {
-					value : featureIdentifier,
-					operator : 'SORTDESC'
+						orders: [{
+							property: featureIdentifier,
+							direction: 'DESC'
+						}]
 				};
 			} else {
 				sortRule = {
-					value : featureIdentifier,
-					operator : 'SORTASC'
+						orders: [{
+							property: featureIdentifier,
+							direction: 'ASC'
+						}]
 				};
 			}
 

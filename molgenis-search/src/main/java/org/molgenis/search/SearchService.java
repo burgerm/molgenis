@@ -2,9 +2,9 @@ package org.molgenis.search;
 
 import java.util.List;
 
-import org.molgenis.framework.db.QueryRule;
+import org.molgenis.data.Entity;
+import org.molgenis.data.Query;
 import org.molgenis.framework.tupletable.TupleTable;
-import org.molgenis.util.Entity;
 
 /**
  * Interface that a concrete SearchService must implement.
@@ -73,7 +73,7 @@ public interface SearchService
 	 * @param queryRules
 	 * @return
 	 */
-	long count(String documentType, List<QueryRule> queryRules);
+	long count(String documentType, Query q);
 
 	/**
 	 * delete documentType from index

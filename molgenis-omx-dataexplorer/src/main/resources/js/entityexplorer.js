@@ -83,17 +83,43 @@
 						}
 					}
 				});
-			});				
-			
+			});
+            //create a map of protocols with the datasets they are used in
+            var protocolsMap = {};
+            var datasets = restApi.get('/api/v1/dataset');
+            $.each(datasets.items, function(key, dataset) {
+                var protocolUsed = dataset.protocolUsed.href;
+                protocolsMap = getSubProtocols(dataset.identifier, protocolUsed, protocolsMap);
+            });
+
+            function getSubProtocols (datasetIdentifier, rootProtocolUri, protocolsMap){
+                var rootProtocol = restApi.get(rootProtocolUri, ["subprotocols"]);
+                //check if the protocol was already found in another dataset
+                //add dataset to list of datasets in which the protocol occurs
+                var datasetIdentifiers = protocolsMap[rootProtocol];
+                if(!datasetIdentifiers) {
+                    datasetIdentifiers = [];
+                }
+                datasetIdentifiers.push(datasetIdentifier);
+                protocolsMap[rootProtocol.identifier] = datasetIdentifiers;
+                $.each(rootProtocol.subprotocols.items, function(key, protocol) {
+                      if(protocol.subprotocols.length>0){
+                          protocolsMap = getSubProtocols(datasetIdentifier, protocol.href, protocolsMap);
+                      }
+                });
+                return protocolsMap;
+            }
+
 			// get all protocol features
-			restApi.getAsync('/api/v1/protocol', ['features'], null, function(protocols) {
-				var items = [];
-				items.push('<div class="accordion" id="accordion">');
-				
-				var nrProtocols = 0;
-				var firstProtocol = true;
-				$.each(protocols.items, function(key, protocol) {
-					// determine features that reference the given entity
+            restApi.getAsync('/api/v1/protocol', ['features'], null, function(protocols) {
+                var items = [];
+                items.push('<div class="accordion" id="accordion">');
+
+                var nrProtocols = 0;
+                var firstProtocol = true;
+                $.each(protocols.items, function(key, protocol) {
+                    var datasets = protocolsMap[protocol.identifier];
+                   	// determine features that reference the given entity
 					var matchedFeatures = [];
 					var remainingFeatures = [];
 					$.each(protocol.features.items, function(key, feature) {
@@ -117,7 +143,13 @@
 						
 						items.push('<div class="accordion-group">');
 						items.push('<div class="accordion-heading">');
-						items.push('<a class="accordion-toggle" data-toggle="collapse" href="#collapse-' + protocol.identifier + '">');
+						items.push('<a class="accordion-toggle" data-toggle="collapse" href="#collapse-' + protocol.identifier + '"><i class="icon-chevron-');
+						if(firstProtocol) {
+							items.push('down');
+						} else {
+							items.push('right');
+						}
+						items.push('"></i> ');
 					    items.push(protocol.name);
 					    items.push('</a>');
 					    items.push('</div>');
@@ -134,7 +166,7 @@
 					    items.push('<h3>Protocol summary</h3>');
 					    items.push('<p>' + protocol.description + '</p>');
 					    items.push('</div>');
-					    items.push('<div class="span9">');
+					    items.push('<div id="table-protocol-container" class="span9">');
 					    
 						// build protocol result table
 						var features = $.merge(matchedFeatures, remainingFeatures);
@@ -144,15 +176,26 @@
 							items.push('<tr>');
 							items.push('<td class="first">' + feature.name + '</td>');
 							$.each(searchHits, function(key, searchHit) {
-								items.push('<td>' + searchHit.columnValueMap[feature.identifier] + '</td>');
+                                //only include data that was found in a dataset where the current protocol is part of
+								if(datasets.indexOf(searchHit.columnValueMap['partOfDataset'])!=-1){
+                                    if(searchHit.columnValueMap[feature.identifier]){
+                                        items.push('<td>' + formatTableCellValue(searchHit.columnValueMap[feature.identifier],feature.dataType) + '</td>');
+                                    }
+                                    else{
+                                        items.push('<td/>');
+                                    }
+                                }
 							});
 							items.push('</tr>');
 						});
 						items.push('<tr><td class="first"></td>');
 						$.each(searchHits, function(key, searchHit) {
-							if(typeof ns.dataExplorerUrl !== 'undefined'){
-								items.push('<td><a href="'+ns.dataExplorerUrl+'?dataset=' + searchHit.documentType + '" target="_blank">View data set</a></td>');
-							}
+                            //only include data that was found in a dataset where the current protocol is part of
+                            if(datasets.indexOf(searchHit.columnValueMap['partOfDataset'])!=-1){
+                                if(typeof ns.dataExplorerUrl !== 'undefined'){
+                                    items.push('<td><a href="'+ns.dataExplorerUrl+'?dataset=' + searchHit.documentType + '" target="_blank">View data set</a></td>');
+                                }
+                            }
 						});
 						items.push('</tr>');
 						items.push('</tbody>');
@@ -171,6 +214,7 @@
 				
 				$('#entity-search-results-header').html(searchResponse.totalHitCount + ' search results in ' + nrProtocols + ' protocols');
 				$('#entity-search-results').html(items.join(''));
+				$('.show-popover').popover({trigger:'hover', placement: 'bottom'});
 			});
 		});
 	};
@@ -195,6 +239,12 @@
 			ns.onEntitySelectionChange($(this).val());
 		});
 
+		$(document).on('show', '#accordion .collapse', function() {
+		    $(this).parent().find(".icon-chevron-right").removeClass("icon-chevron-right").addClass("icon-chevron-down");
+		}).on('hide', '#accordion .collapse', function() {
+		    $(this).parent().find(".icon-chevron-down").removeClass("icon-chevron-down").addClass("icon-chevron-right");
+		});
+		
 		var selected = $('#entity-instance-select').val();
 		if (selected != null)
 			$('#entity-instance-select').change();

@@ -86,7 +86,7 @@ public class ExcelEntitySource implements EntitySource
 		this(null, url, cellProcessors);
 	}
 
-	protected ExcelEntitySource(InputStream is, List<CellProcessor> cellProcessors)
+	public ExcelEntitySource(InputStream is, List<CellProcessor> cellProcessors)
 	{
 		this(is, null, cellProcessors);
 	}
@@ -167,7 +167,7 @@ public class ExcelEntitySource implements EntitySource
 	}
 
 	@Override
-	public Repository<ExcelEntity> getRepositoryByEntityName(String entityName)
+	public Repository<ExcelEntity> getRepositoryByEntityName(String entityName) throws UnknownEntityException
 	{
 		Sheet poiSheet = workbook.getSheet(entityName);
 		if (poiSheet == null)

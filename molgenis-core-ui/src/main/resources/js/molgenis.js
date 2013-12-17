@@ -27,7 +27,29 @@
 		items.push('</div>');
 		
 		container.prepend(items.join(''));
-	};		
+	};
+	
+	/*
+	 * Create a datasets indexer alert when indexer is running.
+	 */
+	molgenis.createDatasetsindexerAlert = function () {
+		$.get("/dataindexerstatus", function(response) {
+			if(response && response.isRunning === true){
+				showDatasetsindexerStatusMessage();
+			}
+		});
+		
+		function showDatasetsindexerStatusMessage() {
+			$.get("/dataindexerstatus", function(response) {
+				$('.datasetsindexerAlerts').empty();
+				if(response.isRunning === true){
+					setTimeout(showDatasetsindexerStatusMessage, 3000);
+				}
+				molgenis.createAlert([{'message': response.message}], response.type, $('.datasetsindexerAlerts'));
+			});
+		};
+	};
+	
 }($, window.top.molgenis = window.top.molgenis || {}));
 
 
@@ -276,7 +298,8 @@ $(function() {
 
 	molgenis.SearchClient.prototype.search = function(searchRequest, callback) {
 		var jsonRequest = JSON.stringify(searchRequest);
-
+		console.log(jsonRequest);
+		
 		$.ajax({
 			type : "POST",
 			url : '/search',
@@ -501,4 +524,8 @@ $(function() {
 		 //send request and remove form from dom
 		 $('<form action="' + url +'" method="' + method + '">').html(inputs.join('')).appendTo('body').submit().remove();
 	 }; 
+});
+
+$(function() {
+	molgenis.createDatasetsindexerAlert();
 });
