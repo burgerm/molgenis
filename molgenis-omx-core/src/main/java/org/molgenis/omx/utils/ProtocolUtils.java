@@ -191,7 +191,7 @@ public class ProtocolUtils
 		{
 			matrixIndirect = matrixIndirectCurrent;
 			// TODO:
-			for ()
+			
 		}
 		
 		// Linearize the matrix
